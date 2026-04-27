@@ -5,22 +5,70 @@ import { Input } from "@/components/ui/input";
 import Layout from "@/components/Layout";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useEffect } from "react";
 
 const ACCOUNT_NUMBER = "1234567890";
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState<"overview" | "dues" | "idcard" | "profile">("overview");
   const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const [profile, setProfile] = useState({
-    fullName: "Toluwani Bakare",
-    matricNumber: "230303010052",
-    level: "300L",
+    fullName: "",
+    matricNumber: "",
+    level: "",
     birthday: "",
-    email: "student@lasustech.edu.ng",
+    email: "",
+    duesStatus: "Pending",
+    idCardStatus: "Not Registered",
+    attendance: 0,
+    resources: 0
   });
+
+  const [activities, setActivities] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        navigate("/");
+        return;
+      }
+
+      try {
+        const response = await fetch('http://localhost:5000/api/student/dashboard', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+
+        if (response.ok) {
+          setProfile({
+            ...profile,
+            fullName: data.profile.full_name,
+            matricNumber: data.profile.matric_number,
+            level: data.profile.level,
+            duesStatus: data.profile.dues_status,
+            idCardStatus: data.profile.id_card_status,
+            attendance: data.profile.attendance_percentage,
+            resources: data.profile.resources_count,
+          });
+          setActivities(data.activities);
+        } else {
+          toast({ title: "Session Expired", description: "Please login again.", variant: "destructive" });
+          navigate("/");
+        }
+      } catch (error) {
+        console.error("Fetch error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [navigate]);
 
   const isProfileIncomplete = !profile.fullName || !profile.matricNumber || !profile.level || !profile.birthday;
 
@@ -145,7 +193,7 @@ const Dashboard = () => {
                     </div>
                     <div>
                       <h3 className="text-sm font-bold">Membership Dues</h3>
-                      <p className="text-xs text-muted-foreground">Paid status: <span className="text-amber-600 font-bold">Pending</span></p>
+                      <p className="text-xs text-muted-foreground">Paid status: <span className={`${profile.duesStatus === 'Paid' ? 'text-green-600' : 'text-amber-600'} font-bold`}>{profile.duesStatus}</span></p>
                     </div>
                   </div>
                   <Button onClick={() => setActiveTab("dues")} className="mt-6 w-full rounded-xl" variant="outline">View Break-down</Button>
@@ -158,8 +206,9 @@ const Dashboard = () => {
                     </div>
                     <div>
                       <h3 className="text-sm font-bold">ID Card Status</h3>
-                      <p className="text-xs text-muted-foreground">Action: <span className="text-blue-600 font-bold">Registration open</span></p>
+                      <p className="text-xs text-muted-foreground">Status: <span className="text-blue-600 font-bold">{profile.idCardStatus}</span></p>
                     </div>
+
                   </div>
                   <Button onClick={() => setActiveTab("idcard")} className="mt-6 w-full rounded-xl" variant="outline">Start Registration</Button>
                 </div>
@@ -183,18 +232,14 @@ const Dashboard = () => {
                 <div className="rounded-3xl border border-border bg-white p-6 shadow-sm">
                   <h3 className="font-display text-lg font-bold">Recent Activities</h3>
                   <div className="mt-6 space-y-4">
-                    {[
-                      { type: "Profile Update", date: "Today, 10:45 AM", status: "Done" },
-                      { type: "Dues Initialization", date: "Yesterday, 2:15 PM", status: "Incomplete" },
-                      { type: "Chapter Meeting", date: "April 12, 10:00 AM", status: "Attended" },
-                    ].map((activity, i) => (
+                    {activities.map((activity, i) => (
                       <div key={i} className="flex items-center justify-between border-b border-border pb-3 last:border-0">
                         <div>
                           <p className="text-sm font-semibold">{activity.type}</p>
-                          <p className="text-[11px] text-muted-foreground">{activity.date}</p>
+                          <p className="text-[11px] text-muted-foreground">{new Date(activity.activity_date).toLocaleDateString()}</p>
                         </div>
                         <span className={`text-[10px] font-bold uppercase tracking-wider rounded-full px-2 py-0.5 ${
-                          activity.status === "Done" ? "bg-green-100 text-green-700" : 
+                          activity.status === "Done" || activity.status === "Attended" ? "bg-green-100 text-green-700" : 
                           activity.status === "Incomplete" ? "bg-amber-100 text-amber-700" :
                           "bg-blue-100 text-blue-700"
                         }`}>
@@ -202,6 +247,7 @@ const Dashboard = () => {
                         </span>
                       </div>
                     ))}
+                    {activities.length === 0 && <p className="text-xs text-muted-foreground">No recent activities found.</p>}
                   </div>
                 </div>
 
@@ -210,13 +256,14 @@ const Dashboard = () => {
                   <div className="mt-6 grid grid-cols-2 gap-4">
                     <div className="rounded-2xl bg-white p-4">
                       <p className="text-[10px] font-bold uppercase text-muted-foreground">Attendance</p>
-                      <p className="mt-1 font-display text-2xl font-bold">84%</p>
+                      <p className="mt-1 font-display text-2xl font-bold">{profile.attendance}%</p>
                     </div>
                     <div className="rounded-2xl bg-white p-4">
                       <p className="text-[10px] font-bold uppercase text-muted-foreground">Resources</p>
-                      <p className="mt-1 font-display text-2xl font-bold">12</p>
+                      <p className="mt-1 font-display text-2xl font-bold">{profile.resources}</p>
                     </div>
                   </div>
+
                   <p className="mt-6 text-xs leading-relaxed text-muted-foreground italic">
                     "Computing is the language of the future. Keep learning and growing as a Computing Student."
                   </p>

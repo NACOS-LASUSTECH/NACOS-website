@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import Layout from "@/components/Layout";
 import EventCard from "@/components/EventCard";
-import { events } from "@/data/events";
+
 import gallery1 from "@/assets/gallery-1.jpg";
 import gallery2 from "@/assets/gallery-2.jpg";
 import gallery3 from "@/assets/gallery-3.jpg";
@@ -21,8 +21,17 @@ const images = [
 
 const Events = () => {
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
-  const upcomingEvents = events.filter((e) => e.upcoming);
-  const pastEvents = events.filter((e) => !e.upcoming);
+  const [events, setEvents] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('http://localhost:5000/api/content/events')
+      .then(res => res.json())
+      .then(data => setEvents(data))
+      .catch(err => console.error(err));
+  }, []);
+
+  const upcomingEvents = events.filter((e) => new Date(e.event_date) >= new Date());
+  const pastEvents = events.filter((e) => new Date(e.event_date) < new Date());
 
   return (
     <Layout>

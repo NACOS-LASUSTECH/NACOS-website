@@ -10,6 +10,7 @@ import Blog from "./pages/Blog.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import Contact from "./pages/Contact.tsx";
 import Constitution from "./pages/Constitution.tsx";
+import AdminPortal from "./pages/AdminPortal.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import ScrollToTop from "./components/ScrollToTop";
 
@@ -20,7 +21,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <ScrollToTop />
         <Routes>
           <Route path="/" element={<Index />} />
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/events" element={<Events />} />
           <Route path="/blog" element={<Blog />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/admin" element={<AdminPortal />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/constitution" element={<Constitution />} />
           <Route path="*" element={<NotFound />} />
@@ -36,6 +38,7 @@ const App = () => (
     </TooltipProvider>
   </QueryClientProvider>
 );
+
 
 
 export default App;

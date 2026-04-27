@@ -1,9 +1,25 @@
 import Layout from "@/components/Layout";
 import SectionHeading from "@/components/SectionHeading";
 import ExecutiveCard from "@/components/ExecutiveCard";
-import { executives } from "@/data/executives";
+import { useState, useEffect } from "react";
 
 const Executives = () => {
+  const [executives, setExecutives] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('http://localhost:5000/api/content/executives')
+      .then(res => res.json())
+      .then(data => {
+        setExecutives(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, []);
+
   const topLeaders = executives.slice(0, 3);
   const coreExcos = executives.slice(3, 11);
   const hocs = executives.slice(11, 15);
