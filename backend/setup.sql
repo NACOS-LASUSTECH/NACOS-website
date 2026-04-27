@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS students (
     attendance_percentage INT DEFAULT 0,
     resources_count INT DEFAULT 0,
     role ENUM('student', 'admin') DEFAULT 'student',
+    profile_image VARCHAR(255) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

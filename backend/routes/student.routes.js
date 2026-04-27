@@ -14,7 +14,7 @@ const router = Router();
 router.get('/profile', protect, async (req, res) => {
   try {
     const [rows] = await db.query(
-      'SELECT id, full_name, matric_number, level, dues_status, wallet_balance FROM students WHERE id = ?',
+      'SELECT id, full_name, matric_number, level, dues_status, wallet_balance, profile_image FROM students WHERE id = ?',
       [req.user.id]
     );
     
@@ -33,7 +33,7 @@ router.get('/dashboard', protect, async (req, res) => {
   try {
     // 1. Get student stats
     const [studentRows] = await db.query(
-      'SELECT full_name, level, dues_status, id_card_status, wallet_balance, attendance_percentage, resources_count FROM students WHERE id = ?',
+      'SELECT full_name, level, dues_status, id_card_status, wallet_balance, attendance_percentage, resources_count, profile_image, matric_number FROM students WHERE id = ?',
       [req.user.id]
     );
 
@@ -57,9 +57,51 @@ router.get('/dashboard', protect, async (req, res) => {
   }
 });
 
+import sharp from 'sharp';
+import fs from 'fs/promises';
+import path from 'path';
+import upload from '../middleware/upload.middleware.js';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Update Profile Picture
+router.put('/profile-image', protect, upload.single('image'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'No image uploaded!' });
+  }
+
+  try {
+    const uploadsDir = path.join(__dirname, '..', 'uploads', 'profiles');
+    // Ensure directory exists
+    await fs.mkdir(uploadsDir, { recursive: true });
+
+    const filename = `student-${req.user.id}-${Date.now()}.webp`;
+    const filepath = path.join(uploadsDir, filename);
+
+    // Process and compress image with Sharp
+    await sharp(req.file.buffer)
+      .resize(500, 500, { fit: 'cover' })
+      .webp({ quality: 80 })
+      .toFile(filepath);
+
+    const imageUrl = `/uploads/profiles/${filename}`;
+
+    // Save URL to database
+    await db.query('UPDATE students SET profile_image = ? WHERE id = ?', [imageUrl, req.user.id]);
+
+    res.json({ message: 'Profile picture updated successfully!', imageUrl });
+  } catch (error) {
+    console.error('❌ Upload Error:', error);
+    res.status(500).json({ message: 'Error processing image.' });
+  }
+});
+
 // Update Profile
 router.put('/profile', protect, async (req, res) => {
   const { full_name, level, email } = req.body;
+
   
   try {
     await db.query(

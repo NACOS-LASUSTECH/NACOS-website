@@ -10,10 +10,26 @@ const Contact = () => {
   const { toast } = useToast();
   const [form, setForm] = useState({ name: "", email: "", message: "" });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({ title: "Message sent", description: "Thank you for reaching out. We will get back to you soon." });
-    setForm({ name: "", email: "", message: "" });
+    try {
+      const response = await fetch('http://localhost:5000/api/contact/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: form.name,
+          email: form.email,
+          subject: 'Contact Form Message',
+          message: form.message
+        })
+      });
+      if (response.ok) {
+        toast({ title: "Message sent", description: "Thank you for reaching out. We will get back to you soon." });
+        setForm({ name: "", email: "", message: "" });
+      }
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to send message.", variant: "destructive" });
+    }
   };
 
   return (

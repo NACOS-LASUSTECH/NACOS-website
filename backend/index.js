@@ -44,7 +44,7 @@ const authLimiter = rateLimit({
  * Helmet helps with basic security headers, 
  * Morgan logs our requests so we know what's happening.
  */
-app.use(helmet()); // Stay safe out there!
+app.use(helmet({ crossOriginResourcePolicy: false })); // Stay safe out there, but let images load!
 app.use(cors());   // Allow our frontend to talk to us
 app.use(express.json({ limit: '10kb' })); // Security: Limit JSON body size to prevent DoS
 app.use(morgan('dev'));  // Log requests to the console
@@ -66,6 +66,12 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/payments', paymentRoutes);
 
+// Serve uploads folder statically
+import path from 'path';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // A simple health check to make sure the lights are on
 app.get('/health', (req, res) => {

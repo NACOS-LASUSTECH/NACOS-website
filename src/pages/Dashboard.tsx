@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import Layout from "@/components/Layout";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 const ACCOUNT_NUMBER = "1234567890";
 
@@ -25,8 +25,11 @@ const Dashboard = () => {
     duesStatus: "Pending",
     idCardStatus: "Not Registered",
     attendance: 0,
-    resources: 0
+    resources: 0,
+    profileImage: null as string | null
   });
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [activities, setActivities] = useState<any[]>([]);
 
@@ -54,6 +57,7 @@ const Dashboard = () => {
             idCardStatus: data.profile.id_card_status,
             attendance: data.profile.attendance_percentage,
             resources: data.profile.resources_count,
+            profileImage: data.profile.profile_image
           });
           setActivities(data.activities);
         } else {
@@ -84,10 +88,79 @@ const Dashboard = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleUploadProfile = (e: React.FormEvent) => {
+  const handleUploadProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({ title: "Profile Updated", description: "Your changes have been saved successfully." });
-    setActiveTab("overview");
+    const token = localStorage.getItem("token");
+    try {
+      const response = await fetch('http://localhost:5000/api/student/profile', {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          full_name: profile.fullName,
+          level: profile.level,
+          email: profile.email
+        })
+      });
+      if (response.ok) {
+        toast({ title: "Profile Updated", description: "Your changes have been saved successfully." });
+        setActiveTab("overview");
+      }
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to update profile.", variant: "destructive" });
+    }
+  };
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const token = localStorage.getItem("token");
+    try {
+      toast({ title: "Uploading...", description: "Compressing and saving your photo." });
+      const response = await fetch('http://localhost:5000/api/student/profile-image', {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setProfile({ ...profile, profileImage: data.imageUrl });
+        toast({ title: "Success", description: "Profile picture updated successfully!" });
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to upload image.", variant: "destructive" });
+    }
+  };
+
+  const handlePayment = async () => {
+    const token = localStorage.getItem("token");
+    try {
+      const response = await fetch('http://localhost:5000/api/payments/initialize', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          email: profile.email || `${profile.matricNumber}@lasustech.edu.ng`,
+          amount: 5000 // Example amount in Naira
+        })
+      });
+      const data = await response.json();
+      if (response.ok && data.data.authorization_url) {
+        window.location.href = data.data.authorization_url;
+      }
+    } catch (err) {
+      toast({ title: "Payment Error", description: "Could not initialize payment.", variant: "destructive" });
+    }
   };
 
   return (
@@ -284,15 +357,24 @@ const Dashboard = () => {
                     <div className="relative">
                       <div className="h-32 w-32 overflow-hidden rounded-full border-4 border-card bg-muted shadow-xl">
                         <img 
-                          src="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=128&auto=format&fit=crop" 
+                          src={profile.profileImage ? `http://localhost:5000${profile.profileImage}` : "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=128&auto=format&fit=crop"} 
                           alt="Profile" 
                           className="h-full w-full object-cover"
                         />
                       </div>
                     </div>
-                    <Button variant="outline" className="mb-4 gap-2 rounded-xl text-xs">
-                      Update Photo
-                    </Button>
+                    <div>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        ref={fileInputRef} 
+                        onChange={handleImageChange} 
+                        className="hidden" 
+                      />
+                      <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="mb-4 gap-2 rounded-xl text-xs">
+                        Update Photo
+                      </Button>
+                    </div>
                   </div>
 
                   <form onSubmit={handleUploadProfile} className="mt-8 space-y-6">
@@ -388,8 +470,23 @@ const Dashboard = () => {
                 </div>
                 <div className="mt-8 rounded-2xl border border-primary/20 bg-primary/5 p-6 shadow-highlight">
                   <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-primary" />
+                    Pay Online (Instant)
+                  </h4>
+                  <p className="mt-2 text-xs text-muted-foreground">Skip the bank queue and pay your ₦5,000 dues securely via Paystack.</p>
+                  <Button 
+                    onClick={handlePayment} 
+                    className="mt-4 w-full rounded-xl shadow-lg shadow-primary/20"
+                    disabled={profile.duesStatus === 'Paid'}
+                  >
+                    {profile.duesStatus === 'Paid' ? 'Dues Already Paid' : 'Pay Dues Online Now'}
+                  </Button>
+                </div>
+
+                <div className="mt-6 rounded-2xl border border-border bg-muted/20 p-6">
+                  <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
                     <AlertCircle className="h-4 w-4 text-primary" />
-                    Crucial Instructions
+                    Bank Transfer Instructions
                   </h4>
                   <ul className="mt-4 space-y-3 text-xs text-muted-foreground font-medium">
                     <li className="flex gap-2"><span>1.</span> <span>Transfer the exact dues amount to the account above.</span></li>
