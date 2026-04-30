@@ -1,16 +1,8 @@
-import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import BlogCard from "@/components/BlogCard";
+import { blogs } from "@/data/blogs";
 
 const Blog = () => {
-  const [blogs, setBlogs] = useState<any[]>([]);
-
-  useEffect(() => {
-    fetch('http://localhost:5000/api/content/blogs')
-      .then(res => res.json())
-      .then(data => setBlogs(data))
-      .catch(err => console.error(err));
-  }, []);
   return (
     <Layout>
       <section className="bg-foreground py-14 md:py-20">
