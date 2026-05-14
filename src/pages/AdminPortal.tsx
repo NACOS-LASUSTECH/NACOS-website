@@ -3,6 +3,7 @@ import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { fetchApi } from "@/lib/api";
 import { 
   Users, 
   Calendar, 
@@ -30,38 +31,34 @@ const AdminPortal = () => {
     fetchAdminData();
   }, [navigate]);
 
+  const [stats, setStats] = useState<any>({});
+
   const fetchAdminData = async () => {
-    const token = localStorage.getItem("token");
     try {
-      // Fetching all management data
-      const [excos, evts, blgs, msgs] = await Promise.all([
-        fetch('http://localhost:5000/api/content/executives').then(r => r.json()),
-        fetch('http://localhost:5000/api/content/events').then(r => r.json()),
-        fetch('http://localhost:5000/api/content/blogs').then(r => r.json()),
-        fetch('http://localhost:5000/api/admin/messages', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }).then(r => r.json())
+      // Fetching all management data using our API utility
+      const [excos, evts, blgs, msgs, sysStats] = await Promise.all([
+        fetchApi('/content/executives'),
+        fetchApi('/content/events'),
+        fetchApi('/content/blogs'),
+        fetchApi('/admin/messages'),
+        fetchApi('/admin/stats')
       ]);
 
       setData({ executives: excos, events: evts, blogs: blgs, messages: msgs });
+      setStats(sysStats);
     } catch (error) {
       console.error(error);
+      toast({ title: "Sync Error", description: "Could not fetch latest management data.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (type: string, id: number) => {
-    const token = localStorage.getItem("token");
     try {
-      const response = await fetch(`http://localhost:5000/api/admin/${type}/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        toast({ title: "Deleted!", description: `${type} removed successfully.` });
-        fetchAdminData();
-      }
+      await fetchApi(`/admin/${type}/${id}`, { method: 'DELETE' });
+      toast({ title: "Deleted!", description: `${type} removed successfully.` });
+      fetchAdminData();
     } catch (error) {
       toast({ title: "Error", description: "Could not delete item.", variant: "destructive" });
     }

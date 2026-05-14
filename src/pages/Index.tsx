@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -15,9 +15,7 @@ import SectionHeading from "@/components/SectionHeading";
 import ExecutiveCard from "@/components/ExecutiveCard";
 import EventCard from "@/components/EventCard";
 import LoginModal from "@/components/LoginModal";
-import { executives } from "@/data/executives";
-import { events } from "@/data/events";
-import { blogs } from "@/data/blogs";
+import { fetchApi } from "@/lib/api";
 import BlogCard from "@/components/BlogCard";
 import heroBg from "@/assets/Events/bootcamp_onboarding/PHOTO-2026-04-29-19-36-06.jpg";
 import nacosLogo from "@/assets/nacos_logo.png";
@@ -40,8 +38,24 @@ const galleryImages = [moment1, moment2, moment3, moment4];
 
 const Index = () => {
   const [loginOpen, setLoginOpen] = useState(false);
+  const [data, setData] = useState<{ executives: any[], events: any[] }>({ executives: [], events: [] });
   const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const loadContent = async () => {
+      try {
+        const [excos, evts] = await Promise.all([
+          fetchApi('/content/executives'),
+          fetchApi('/content/events')
+        ]);
+        setData({ executives: excos, events: evts });
+      } catch (err) {
+        console.error("Failed to load homepage content:", err);
+      }
+    };
+    loadContent();
+  }, []);
 
   const handleAction = (item: typeof quickActions[0]) => {
     if (item.action === "login") {
@@ -261,8 +275,8 @@ const Index = () => {
             description="Meet the student leaders steering the chapter toward excellence."
           />
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {executives.slice(0, 4).map((exec) => (
-              <ExecutiveCard key={exec.post} {...exec} />
+            {data.executives.slice(0, 4).map((exec) => (
+              <ExecutiveCard key={exec.id || exec.post} {...exec} />
             ))}
           </div>
           <div className="mt-8 text-center text-black">
@@ -284,7 +298,7 @@ const Index = () => {
             description="Stay updated with the latest programs, workshops, and gatherings."
           />
           <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {events.slice(0, 3).map((event) => (
+            {data.events.slice(0, 3).map((event) => (
               <EventCard key={event.id} {...event} />
             ))}
           </div>

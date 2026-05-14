@@ -91,6 +91,9 @@ router.put('/profile-image', protect, upload.single('image'), async (req, res) =
     // Save URL to database
     await db.query('UPDATE students SET profile_image = ? WHERE id = ?', [imageUrl, req.user.id]);
 
+    // Log Activity
+    await db.query('INSERT INTO activities (student_id, type, status) VALUES (?, ?, ?)', [req.user.id, 'Photo Update', 'Done']);
+
     res.json({ message: 'Profile picture updated successfully!', imageUrl });
   } catch (error) {
     console.error('❌ Upload Error:', error);
@@ -108,6 +111,10 @@ router.put('/profile', protect, async (req, res) => {
       'UPDATE students SET full_name = ?, level = ?, email = ? WHERE id = ?',
       [full_name, level, email, req.user.id]
     );
+
+    // Log Activity
+    await db.query('INSERT INTO activities (student_id, type, status) VALUES (?, ?, ?)', [req.user.id, 'Profile Update', 'Done']);
+
     res.json({ message: 'Profile updated successfully! Lookin\' good.' });
   } catch (error) {
     res.status(500).json({ message: 'Error updating profile.' });

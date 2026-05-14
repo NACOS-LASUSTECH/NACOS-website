@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { fetchApi } from "@/lib/api";
 import {
   Dialog,
   DialogContent,
@@ -28,38 +29,27 @@ const LoginModal = ({ open, onClose }: LoginModalProps) => {
     if (!surname.trim() || !matric.trim()) return;
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const data = await fetchApi('/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           matric_number: matric,
-          password: surname, // Assuming surname is used as password for now as per current UI
+          password: surname, // Assuming surname is used as password
         }),
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        localStorage.setItem("isLoggedIn", "true");
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-        
-        toast({ title: "Login successful", description: "Welcome back to the portal!" });
-        setSurname("");
-        setMatric("");
-        onClose();
-        navigate("/dashboard");
-      } else {
-        toast({ 
-          title: "Login failed", 
-          description: data.message || "Invalid credentials",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
+      localStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      
+      toast({ title: "Login successful", description: "Welcome back to the portal!" });
+      setSurname("");
+      setMatric("");
+      onClose();
+      navigate("/dashboard");
+    } catch (error: any) {
       toast({ 
-        title: "Connection Error", 
-        description: "Could not connect to the backend server. Is it running?",
+        title: "Login failed", 
+        description: error.message || "Invalid credentials",
         variant: "destructive"
       });
     }

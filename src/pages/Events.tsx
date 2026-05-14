@@ -1,16 +1,23 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import EventCard from "@/components/EventCard";
-import { events } from "@/data/events";
+import { fetchApi } from "@/lib/api";
 import { X, Download, Maximize2 } from "lucide-react";
 
 const Events = () => {
   const navigate = useNavigate();
+  const [events, setEvents] = useState<any[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  const upcomingEvents = events.filter((e) => e.upcoming);
-  const pastEvents = events.filter((e) => !e.upcoming);
+  useEffect(() => {
+    fetchApi('/content/events')
+      .then(data => setEvents(data))
+      .catch(err => console.error(err));
+  }, []);
+
+  const upcomingEvents = events.filter((e) => e.upcoming || new Date(e.event_date) >= new Date());
+  const pastEvents = events.filter((e) => !e.upcoming && new Date(e.event_date) < new Date());
 
   const handleDownload = (imageUrl: string, title: string) => {
     const link = document.createElement("a");

@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Copy, Check, ExternalLink, CreditCard, IdCard as IdIcon, LayoutDashboard, LogOut, User, AlertCircle, Save, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Layout from "@/components/Layout";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect, useRef } from "react";
+import { fetchApi, API_BASE_URL } from "@/lib/api";
 
 const ACCOUNT_NUMBER = "1234567890";
 
@@ -18,6 +18,7 @@ const Dashboard = () => {
       setActiveTab(location.state.tab);
     }
   }, [location.state]);
+
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -37,77 +38,55 @@ const Dashboard = () => {
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const [activities, setActivities] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [amountOwing, setAmountOwing] = useState(5000);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        navigate("/");
-        return;
-      }
-
       try {
-        // Fetch dashboard and payments in parallel
-        const [dashRes, payRes] = await Promise.all([
-          fetch('http://localhost:5000/api/student/dashboard', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          }),
-          fetch('http://localhost:5000/api/student/payments', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          })
+        const [dashData, payData] = await Promise.all([
+          fetchApi('/student/dashboard'),
+          fetchApi('/student/payments')
         ]);
 
-        if (dashRes.ok) {
-          const dashData = await dashRes.json();
-          setProfile({
-            ...profile,
-            fullName: dashData.profile.full_name,
-            matricNumber: dashData.profile.matric_number,
-            level: dashData.profile.level,
-            duesStatus: dashData.profile.dues_status,
-            idCardStatus: dashData.profile.id_card_status,
-            attendance: dashData.profile.attendance_percentage,
-            resources: dashData.profile.resources_count,
-            profileImage: dashData.profile.profile_image
-          });
-          setActivities(dashData.activities || []);
-          if (dashData.profile.dues_status === 'Paid') {
-            setAmountOwing(0);
-          }
-        } else if (dashRes.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("isLoggedIn");
-          toast({ title: "Session Expired", description: "Please login again.", variant: "destructive" });
-          navigate("/");
-        }
-
-        if (payRes.ok) {
-          const payData = await payRes.json();
-          setPayments(Array.isArray(payData) ? payData : []);
-        }
-      } catch (error) {
-        console.error("Fetch error:", error);
-        toast({ 
-          title: "Connection Error", 
-          description: "Could not sync data with server. Check your connection.",
-          variant: "destructive" 
+        setProfile({
+          ...profile,
+          fullName: dashData.profile.full_name,
+          matricNumber: dashData.profile.matric_number,
+          level: dashData.profile.level,
+          duesStatus: dashData.profile.dues_status,
+          idCardStatus: dashData.profile.id_card_status,
+          attendance: dashData.profile.attendance_percentage,
+          resources: dashData.profile.resources_count,
+          profileImage: dashData.profile.profile_image
         });
+        setActivities(dashData.activities || []);
+        setPayments(Array.isArray(payData) ? payData : []);
+        
+        if (dashData.profile.dues_status === 'Paid') {
+          setAmountOwing(0);
+        }
+      } catch (error: any) {
+        console.error("Dashboard Sync Error:", error);
+        if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+          localStorage.clear();
+          navigate("/");
+        } else {
+          toast({ title: "Sync Error", description: "Could not fetch latest portal data.", variant: "destructive" });
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchDashboardData();
-  }, [navigate, toast]);
+  }, [navigate]);
 
   const isProfileIncomplete = !profile.fullName || !profile.matricNumber || !profile.level || !profile.birthday;
 
   const handleLogout = () => {
-    localStorage.removeItem("isLoggedIn");
+    localStorage.clear();
     toast({ title: "Logged out", description: "You have been successfully logged out." });
     navigate("/");
   };
@@ -120,24 +99,17 @@ const Dashboard = () => {
 
   const handleUploadProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    const token = localStorage.getItem("token");
     try {
-      const response = await fetch('http://localhost:5000/api/student/profile', {
+      await fetchApi('/student/profile', {
         method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify({
           full_name: profile.fullName,
           level: profile.level,
           email: profile.email
         })
       });
-      if (response.ok) {
-        toast({ title: "Profile Updated", description: "Your changes have been saved successfully." });
-        setActiveTab("overview");
-      }
+      toast({ title: "Profile Updated", description: "Your changes have been saved successfully." });
+      setActiveTab("overview");
     } catch (err) {
       toast({ title: "Error", description: "Failed to update profile.", variant: "destructive" });
     }
@@ -150,55 +122,43 @@ const Dashboard = () => {
     const formData = new FormData();
     formData.append('image', file);
 
-    const token = localStorage.getItem("token");
     try {
       toast({ title: "Uploading...", description: "Compressing and saving your photo." });
-      const response = await fetch('http://localhost:5000/api/student/profile-image', {
+      const data = await fetchApi('/student/profile-image', {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'undefined' }, // Let browser set boundary for FormData
         body: formData
       });
-      const data = await response.json();
-      if (response.ok) {
-        setProfile({ ...profile, profileImage: data.imageUrl });
-        toast({ title: "Success", description: "Profile picture updated successfully!" });
-      } else {
-        throw new Error(data.message);
-      }
-    } catch (err) {
-      toast({ title: "Error", description: "Failed to upload image.", variant: "destructive" });
+      setProfile({ ...profile, profileImage: data.imageUrl });
+      toast({ title: "Success", description: "Profile picture updated successfully!" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to upload image.", variant: "destructive" });
     }
   };
 
   const handlePayment = async () => {
-    const token = localStorage.getItem("token");
     try {
       toast({ title: "Processing...", description: "Opening payment portal." });
-      const response = await fetch('http://localhost:5000/api/payments/initialize', {
+      const data = await fetchApi('/payments/initialize', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify({
           email: profile.email || `${profile.matricNumber}@lasustech.edu.ng`,
           amount: 5000,
           payment_type: 'nacos_dues'
         })
       });
-      const data = await response.json();
-      if (response.ok && data.data?.authorization_url) {
+      
+      if (data.data?.authorization_url) {
         window.location.href = data.data.authorization_url;
       } else {
-        toast({ title: "Payment Error", description: data.message || "Could not initialize payment.", variant: "destructive" });
+        throw new Error(data.message || "Could not initialize payment.");
       }
-    } catch (err) {
-      toast({ title: "Payment Error", description: "Could not initialize payment.", variant: "destructive" });
+    } catch (err: any) {
+      toast({ title: "Payment Error", description: err.message || "Could not initialize payment.", variant: "destructive" });
     }
   };
 
   const handleIdCardRequest = async () => {
-    const token = localStorage.getItem("token");
     if (profile.duesStatus !== 'Paid') {
       toast({ 
         title: "Dues Required", 
@@ -211,28 +171,19 @@ const Dashboard = () => {
 
     try {
       toast({ title: "Submitting Request", description: "Sending your ID card request..." });
-      const response = await fetch('http://localhost:5000/api/services/id-card/request', {
+      await fetchApi('/services/id-card/request', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify({
           full_name: profile.fullName,
           matric_number: profile.matricNumber,
-          passport_url: profile.profileImage ? `http://localhost:5000${profile.profileImage}` : ""
+          passport_url: profile.profileImage ? `${API_BASE_URL.replace('/api', '')}${profile.profileImage}` : ""
         })
       });
       
-      if (response.ok) {
-        toast({ title: "Success", description: "ID card request submitted! We'll notify you when it's ready." });
-        setProfile({ ...profile, idCardStatus: "Processing" });
-      } else {
-        const data = await response.json();
-        toast({ title: "Request Failed", description: data.message, variant: "destructive" });
-      }
-    } catch (err) {
-      toast({ title: "Error", description: "Failed to submit request.", variant: "destructive" });
+      toast({ title: "Success", description: "ID card request submitted! We'll notify you when it's ready." });
+      setProfile({ ...profile, idCardStatus: "Processing" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to submit request.", variant: "destructive" });
     }
   };
 
@@ -577,17 +528,17 @@ const Dashboard = () => {
                   <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
                     <h3 className="font-display text-lg font-bold text-foreground">Online Payment</h3>
                     <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-                      Instant verification. Skip the wait and pay your ₦5,000 session dues via Paystack.
+                      Instant verification. Skip the wait and pay your ₦5,000 session dues via Korapay.
                     </p>
                     <Button 
                       onClick={handlePayment} 
                       className="mt-6 w-full rounded-xl shadow-lg shadow-primary/20"
                       disabled={profile.duesStatus === 'Paid'}
                     >
-                      {profile.duesStatus === 'Paid' ? 'Dues Already Paid' : 'Pay Now with Paystack'}
+                      {profile.duesStatus === 'Paid' ? 'Dues Already Paid' : 'Pay Now with Korapay'}
                     </Button>
                     <p className="mt-4 text-center text-[10px] text-muted-foreground">
-                      Powered by <strong>Paystack</strong>. All transactions are secure.
+                      Powered by <strong>Korapay</strong>. All transactions are secure.
                     </p>
                   </div>
 

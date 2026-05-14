@@ -11,7 +11,7 @@ router.use(protect, isAdmin);
 /**
  * Admin Management Routes
  * ---------------------------------------------------------
- * Full CRUD for content management.
+ * Full CRUD for content management and system monitoring.
  */
 
 // --- EXECUTIVES ---
@@ -21,6 +21,15 @@ router.post('/executives', async (req, res) => {
     await db.query('INSERT INTO executives (name, post, level, image_url, description) VALUES (?, ?, ?, ?, ?)', 
       [name, post, level, image_url, description]);
     res.json({ message: 'Executive added successfully!' });
+  } catch (error) { res.status(500).json({ message: error.message }); }
+});
+
+router.put('/executives/:id', async (req, res) => {
+  const { name, post, level, image_url, description } = req.body;
+  try {
+    await db.query('UPDATE executives SET name = ?, post = ?, level = ?, image_url = ?, description = ? WHERE id = ?', 
+      [name, post, level, image_url, description, req.params.id]);
+    res.json({ message: 'Executive updated successfully!' });
   } catch (error) { res.status(500).json({ message: error.message }); }
 });
 
@@ -41,6 +50,22 @@ router.post('/events', async (req, res) => {
   } catch (error) { res.status(500).json({ message: error.message }); }
 });
 
+router.put('/events/:id', async (req, res) => {
+  const { title, description, event_date, location, image_url } = req.body;
+  try {
+    await db.query('UPDATE events SET title = ?, description = ?, event_date = ?, location = ?, image_url = ? WHERE id = ?', 
+      [title, description, event_date, location, image_url, req.params.id]);
+    res.json({ message: 'Event updated!' });
+  } catch (error) { res.status(500).json({ message: error.message }); }
+});
+
+router.delete('/events/:id', async (req, res) => {
+  try {
+    await db.query('DELETE FROM events WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Event removed!' });
+  } catch (error) { res.status(500).json({ message: error.message }); }
+});
+
 // --- BLOGS ---
 router.post('/blogs', async (req, res) => {
   const { title, excerpt, content, image_url, category } = req.body;
@@ -48,6 +73,37 @@ router.post('/blogs', async (req, res) => {
     await db.query('INSERT INTO blogs (title, excerpt, content, image_url, category) VALUES (?, ?, ?, ?, ?)', 
       [title, excerpt, content, image_url, category]);
     res.json({ message: 'Blog post published!' });
+  } catch (error) { res.status(500).json({ message: error.message }); }
+});
+
+router.put('/blogs/:id', async (req, res) => {
+  const { title, excerpt, content, image_url, category } = req.body;
+  try {
+    await db.query('UPDATE blogs SET title = ?, excerpt = ?, content = ?, image_url = ?, category = ? WHERE id = ?', 
+      [title, excerpt, content, image_url, category, req.params.id]);
+    res.json({ message: 'Blog post updated!' });
+  } catch (error) { res.status(500).json({ message: error.message }); }
+});
+
+router.delete('/blogs/:id', async (req, res) => {
+  try {
+    await db.query('DELETE FROM blogs WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Blog post removed!' });
+  } catch (error) { res.status(500).json({ message: error.message }); }
+});
+
+// --- MESSAGES ---
+router.get('/messages', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM contact_messages ORDER BY created_at DESC');
+    res.json(rows);
+  } catch (error) { res.status(500).json({ message: error.message }); }
+});
+
+router.delete('/messages/:id', async (req, res) => {
+  try {
+    await db.query('DELETE FROM contact_messages WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Message deleted!' });
   } catch (error) { res.status(500).json({ message: error.message }); }
 });
 
@@ -96,8 +152,5 @@ router.get('/payments', async (req, res) => {
     res.json(rows);
   } catch (error) { res.status(500).json({ message: error.message }); }
 });
-
-// --- EXISTING CONTENT ROUTES ---
-// ... existing post/delete routes for executives, events, blogs ...
 
 export default router;
