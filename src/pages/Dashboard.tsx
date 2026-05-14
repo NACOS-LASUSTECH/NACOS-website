@@ -394,7 +394,7 @@ const Dashboard = () => {
                     <div className="relative">
                       <div className="h-32 w-32 overflow-hidden rounded-full border-4 border-card bg-muted shadow-xl">
                         <img 
-                          src={profile.profileImage ? `http://localhost:5000${profile.profileImage}` : "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=128&auto=format&fit=crop"} 
+                          src={profile.profileImage ? `${API_BASE_URL.replace('/api', '')}${profile.profileImage}` : "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=128&auto=format&fit=crop"} 
                           alt="Profile" 
                           className="h-full w-full object-cover"
                         />

@@ -107,10 +107,10 @@ const AdminPortal = () => {
           {activeTab === 'dashboard' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
-                { label: 'Total Excos', value: data.executives.length, icon: Users, color: 'text-blue-600' },
-                { label: 'Active Events', value: data.events.length, icon: Calendar, color: 'text-green-600' },
-                { label: 'Blog Posts', value: data.blogs.length, icon: FileText, color: 'text-purple-600' },
-                { label: 'Messages', value: data.messages.length, icon: MessageSquare, color: 'text-amber-600' },
+                { label: 'Total Students', value: stats.totalStudents || 0, icon: Users, color: 'text-blue-600' },
+                { label: 'Dues Paid', value: stats.paidStudents || 0, icon: Calendar, color: 'text-green-600' },
+                { label: 'Total Revenue', value: `₦${(stats.revenue || 0).toLocaleString()}`, icon: FileText, color: 'text-purple-600' },
+                { label: 'Pending ID Cards', value: stats.pendingIDCards || 0, icon: MessageSquare, color: 'text-amber-600' },
               ].map((stat, i) => (
                 <div key={i} className="bg-white p-6 rounded-3xl border border-border shadow-sm">
                   <stat.icon className={`h-8 w-8 ${stat.color} mb-4`} />
