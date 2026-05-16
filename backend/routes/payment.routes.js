@@ -1,19 +1,22 @@
 import { Router } from 'express';
+import axios from 'axios';
 import KorapayService from '../services/korapay.service.js';
-import db from '../db.js';
 import protect from '../middleware/auth.middleware.js';
+import emailService from '../services/email.service.js';
 
 const router = Router();
+const ID_SYSTEM_API = 'https://nacosid.tmb.it.com/api.php';
+const API_KEY = process.env.ID_SYSTEM_API_KEY || 'NACOS_LASUSTECH_SECURE_API_KEY';
 
 /**
- * Payment Routes
+ * Payment Routes (Proxy Mode)
  * ---------------------------------------------------------
- * Handling the money flow here via Korapay. 
+ * Handling the money flow via Korapay and syncing to Central System. 
  */
 
 // Kick off a payment
 router.post('/initialize', protect, async (req, res) => {
-  const { email, amount } = req.body;
+  const { email, amount, payment_type } = req.body;
 
   try {
     const reference = `NACOS-${req.user.matric}-${Date.now()}`;
@@ -22,16 +25,24 @@ router.post('/initialize', protect, async (req, res) => {
       amount,
       reference,
       full_name: req.user.name,
-      metadata: { studentId: req.user.id, matric: req.user.matric }
+      metadata: { studentId: req.user.id, matric: req.user.matric, type: payment_type || 'dues' }
     });
 
-    // Save transaction to DB as 'pending'
-    await db.query(
-      'INSERT INTO payments (student_id, amount, reference, status, payment_type) VALUES (?, ?, ?, ?, ?)',
-      [req.user.id, amount, reference, 'pending', 'dues']
-    );
+    // Notify central system of pending payment
+    try {
+      await axios.post(`${ID_SYSTEM_API}?action=log_payment_pending`, {
+        matric_number: req.user.matric,
+        amount,
+        reference,
+        payment_type: payment_type || 'dues'
+      }, {
+        headers: { 'X-API-KEY': API_KEY }
+      });
+    } catch (apiErr) {
+      console.warn('⚠️ Could not log pending payment to central system:', apiErr.message);
+    }
 
-    // Map Korapay response to what the frontend expects
+    // Map Korapay response
     const formattedData = {
       ...paymentData,
       data: {
@@ -53,18 +64,39 @@ router.get('/verify/:reference', protect, async (req, res) => {
   try {
     const verificationData = await KorapayService.verifyTransaction(reference);
     
-    // Korapay success status is usually 'success' or check verificationData.data.status
     if (verificationData.status === 'success' && (verificationData.data.status === 'success' || verificationData.data.status === 'captured')) {
-      // 1. Update Payment Status
-      await db.query('UPDATE payments SET status = "success" WHERE reference = ?', [reference]);
+      // Sync Success to Central System
+      try {
+        await axios.post(`${ID_SYSTEM_API}?action=log_payment_success`, {
+          matric_number: req.user.matric,
+          reference,
+          amount: verificationData.data.amount
+        }, {
+          headers: { 'X-API-KEY': API_KEY }
+        });
+      } catch (apiErr) {
+        console.error('❌ Failed to sync payment success to central system:', apiErr.message);
+      }
 
-      // 2. Mark Student as "Paid"
-      await db.query('UPDATE students SET dues_status = "Paid" WHERE id = ?', [req.user.id]);
+      // Send Emails
+      const displayType = verificationData.data.metadata?.type === 'id_replacement' ? 'ID Card Replacement' : 'NACOS Session Dues';
       
-      // 3. Log Activity
-      await db.query('INSERT INTO activities (student_id, type, status) VALUES (?, ?, ?)', [req.user.id, 'Dues Payment', 'Done']);
+      emailService.sendPaymentReceipt(req.user.email, req.user.name, {
+        amount: verificationData.data.amount,
+        reference: reference,
+        type: displayType,
+      }).catch(err => console.error('Receipt Error:', err));
 
-      console.log(`✅ Payment success for student ${req.user.id}`);
+      emailService.sendPaymentNotificationToAdmin({
+        amount: verificationData.data.amount,
+        reference: reference,
+        type: displayType,
+      }, {
+        full_name: req.user.name,
+        matric_number: req.user.matric
+      }).catch(err => console.error('Admin Payment Notification Error:', err));
+
+      console.log(`✅ Payment success synced for student ${req.user.matric}`);
     }
 
     res.json(verificationData);
@@ -73,41 +105,53 @@ router.get('/verify/:reference', protect, async (req, res) => {
   }
 });
 
-// Korapay Webhook (For real-time updates)
+// Korapay Webhook
 router.post('/webhook', async (req, res) => {
   const { event, data } = req.body;
   
-  console.log('🔔 Korapay Webhook Received:', event);
-
   if (event === 'charge.success') {
     const reference = data.reference;
+    const matric = data.metadata?.matric;
     
     try {
-      // Find the payment record
-      const [payments] = await db.query('SELECT * FROM payments WHERE reference = ?', [reference]);
-      
-      if (payments.length > 0 && payments[0].status !== 'success') {
-        const studentId = payments[0].student_id;
+      // Sync to Central System
+      await axios.post(`${ID_SYSTEM_API}?action=log_payment_success`, {
+        matric_number: matric,
+        reference,
+        amount: data.amount,
+        is_webhook: true
+      }, {
+        headers: { 'X-API-KEY': API_KEY }
+      });
 
-        // 1. Update Payment Status
-        await db.query('UPDATE payments SET status = "success" WHERE reference = ?', [reference]);
+      // Send Emails
+      const [email, name] = [data.customer?.email, data.customer?.name];
+      const displayType = data.metadata?.type === 'id_replacement' ? 'ID Card Replacement' : 'NACOS Session Dues';
 
-        // 2. Mark Student as "Paid"
-        await db.query('UPDATE students SET dues_status = "Paid" WHERE id = ?', [studentId]);
-
-        // 3. Log Activity
-        await db.query('INSERT INTO activities (student_id, type, status) VALUES (?, ?, ?)', [studentId, 'Dues Payment (Webhook)', 'Done']);
-
-        console.log(`✅ Webhook: Payment success for student ${studentId}`);
+      if (email) {
+        emailService.sendPaymentReceipt(email, name || 'Student', {
+          amount: data.amount,
+          reference: reference,
+          type: displayType,
+        }).catch(err => console.error('Webhook Receipt Error:', err));
       }
+
+      emailService.sendPaymentNotificationToAdmin({
+        amount: data.amount,
+        reference: reference,
+        type: displayType,
+      }, {
+        full_name: name || 'Student',
+        matric_number: matric || 'Unknown'
+      }).catch(err => console.error('Webhook Admin Notification Error:', err));
+
+      console.log(`✅ Webhook: Payment success synced for ${matric}`);
     } catch (error) {
-      console.error('❌ Webhook Processing Error:', error);
+      console.error('❌ Webhook Sync Error:', error.message);
     }
   }
 
-  // Always return 200 to Korapay
   res.status(200).send('Webhook Received');
 });
-
 
 export default router;

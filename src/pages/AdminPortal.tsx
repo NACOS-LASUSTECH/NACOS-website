@@ -22,8 +22,15 @@ const AdminPortal = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    if (user.role !== "admin") {
+    let user: any = {};
+    try {
+      const userStr = localStorage.getItem("user");
+      user = (userStr && userStr !== "null") ? JSON.parse(userStr) : {};
+    } catch (e) {
+      console.error("Admin user parse error", e);
+    }
+
+    if (!user || user.role !== "admin") {
       toast({ title: "Unauthorized", description: "Only admins can enter here, bro!", variant: "destructive" });
       navigate("/dashboard");
       return;

@@ -23,7 +23,7 @@ const Contact = () => {
           message: form.message
         })
       });
-      toast({ title: "Message sent", description: "Thank you for reaching out. We will get back to you soon." });
+      toast({ title: "Message sent", description: "Thank you for reaching out. We have sent a confirmation to your email. Please check your inbox and spam folder!" });
       setForm({ name: "", email: "", message: "" });
     } catch (err) {
       toast({ title: "Error", description: "Failed to send message.", variant: "destructive" });
@@ -72,8 +72,9 @@ const Contact = () => {
                 {[
                   { label: "Facebook", href: "https://www.facebook.com/share/1ApD4QSPDW/?mibextid=wwXIfr" },
                   { label: "Instagram", href: "https://instagram.com/nacoslasustech" },
-                  { label: "TikTok", href: "https://www.tiktok.com/@nacoslasustech2" },
-                  { label: "LinkedIn", href: "https://www.linkedin.com/in/nacos-lasustech-3aa8833b3?trk=contact-info" },
+                  { label: "X (Twitter)", href: "https://x.com/nacoslasustech" },
+                  { label: "TikTok", href: "https://www.tiktok.com/@nacoslasustech" },
+                  { label: "LinkedIn", href: "https://www.linkedin.com/company/nacos-lasustech" },
                 ].map((link) => (
                   <a key={link.label} href={link.href} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-secondary hover:underline">
                     {link.label}

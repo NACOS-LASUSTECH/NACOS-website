@@ -1,16 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Layout from "@/components/Layout";
 import BlogCard from "@/components/BlogCard";
-import { fetchApi } from "@/lib/api";
+import { blogs as staticBlogs } from "@/data/blogs";
 
 const Blog = () => {
-  const [blogs, setBlogs] = useState<any[]>([]);
-
-  useEffect(() => {
-    fetchApi('/content/blogs')
-      .then(data => setBlogs(data))
-      .catch(err => console.error(err));
-  }, []);
+  const [blogs] = useState<any[]>(staticBlogs);
 
   return (
     <Layout>

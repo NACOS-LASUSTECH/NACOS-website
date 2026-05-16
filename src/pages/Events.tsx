@@ -4,20 +4,15 @@ import Layout from "@/components/Layout";
 import EventCard from "@/components/EventCard";
 import { fetchApi } from "@/lib/api";
 import { X, Download, Maximize2 } from "lucide-react";
+import { events as staticEvents } from "@/data/events";
 
 const Events = () => {
   const navigate = useNavigate();
-  const [events, setEvents] = useState<any[]>([]);
+  const [events] = useState<any[]>(staticEvents);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchApi('/content/events')
-      .then(data => setEvents(data))
-      .catch(err => console.error(err));
-  }, []);
-
-  const upcomingEvents = events.filter((e) => e.upcoming || new Date(e.event_date) >= new Date());
-  const pastEvents = events.filter((e) => !e.upcoming && new Date(e.event_date) < new Date());
+  const upcomingEvents = events.filter((e) => e.upcoming === true || (e.event_date && new Date(e.event_date) >= new Date()));
+  const pastEvents = events.filter((e) => !upcomingEvents.includes(e));
 
   const handleDownload = (imageUrl: string, title: string) => {
     const link = document.createElement("a");
