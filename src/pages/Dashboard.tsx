@@ -72,7 +72,7 @@ const Dashboard = () => {
     profileImage: null as string | null
   });
 
-  const API_BASE = "https://nacosid.tmb.it.com/";
+  const API_BASE = "https://nacos-lasustech.onrender.com/";
 
 
   const getProfileImage = (img: string | null) => {
@@ -448,7 +448,7 @@ const Dashboard = () => {
                   if (rawProfileImage && typeof rawProfileImage === 'string') {
                     const src = rawProfileImage.startsWith('http') 
                       ? rawProfileImage 
-                      : `${API_BASE}${rawProfileImage.startsWith('/') ? rawProfileImage.substring(1) : rawProfileImage}`;
+                      : `https://nacos-lasustech.onrender.com/${rawProfileImage.startsWith('/') ? rawProfileImage.substring(1) : rawProfileImage}`;
                     return <img src={src} className="h-full w-full object-cover" alt="Profile" />;
                   }
                   return (

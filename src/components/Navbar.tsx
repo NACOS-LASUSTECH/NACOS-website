@@ -144,7 +144,7 @@ const Navbar = () => {
                           if (profileImage && typeof profileImage === 'string') {
                             const src = profileImage.startsWith('http') 
                               ? profileImage 
-                              : `https://nacosid.tmb.it.com/${profileImage.startsWith('/') ? profileImage.substring(1) : profileImage}`;
+                            : `https://nacos-lasustech.onrender.com/${profileImage.startsWith('/') ? profileImage.substring(1) : profileImage}`;
                             return <img src={src} alt="Profile" className="h-full w-full object-cover" />;
                           }
                         } catch (e) {
@@ -230,7 +230,7 @@ const Navbar = () => {
                         if (profileImage && typeof profileImage === 'string') {
                           const src = profileImage.startsWith('http') 
                             ? profileImage 
-                            : `https://nacosid.tmb.it.com/${profileImage.startsWith('/') ? profileImage.substring(1) : profileImage}`;
+                            : `https://nacos-lasustech.onrender.com/${profileImage.startsWith('/') ? profileImage.substring(1) : profileImage}`;
                           return <img src={src} alt="Profile" className="h-10 w-10 rounded-full border-2 border-primary/20 object-cover" />;
                         }
                       } catch (e) {
